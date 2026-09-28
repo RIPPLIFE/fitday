@@ -11,10 +11,10 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=19" />
+    <link rel="stylesheet" href="./styles.css?v=20" />
     <title>FitDay 智能减脂盘</title>
     <script src="./vendor/lucide.min.js" defer></script>
-    <script src="./app.js?v=19" defer></script>
+    <script src="./app.js?v=20" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -168,11 +168,11 @@
             <div class="strength-session-panel" id="strengthSessionPanel" hidden>
               <div class="strength-session-copy">
                 <p class="eyebrow">当日汇总</p>
-                <strong>今日力量训练总时长</strong>
-                <small id="strengthSessionSummary">填写实际总时长后统一计算力量消耗。</small>
+                <strong>今日力训时长</strong>
+                <small id="strengthSessionSummary">手动填写整场训练总时长后统一计算力量消耗。</small>
               </div>
               <div class="strength-session-input">
-                <input id="dailyStrengthMinutes" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="分钟" aria-label="今日力量训练总时长" />
+                <input id="dailyStrengthMinutes" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="分钟" aria-label="今日力训时长" />
                 <button class="icon-text-button" id="saveStrengthMinutesButton" type="button">
                   <i data-lucide="check"></i>
                   保存

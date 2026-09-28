@@ -303,23 +303,10 @@ function syncStrengthSession(key, minutes = null) {
   }
 
   const existing = getStrengthSession(key);
-  const manuallyConfirmed =
-    existing && ["local", "ai"].includes(existing.estimateSource);
-  let sessionMinutes;
-  let estimateSource;
-
-  if (minutes !== null) {
-    sessionMinutes = Math.max(0, Number(minutes) || 0);
-    estimateSource = "local";
-  } else if (manuallyConfirmed) {
-    sessionMinutes = Number(existing.minutes || 0);
-    estimateSource = "local";
-  } else {
-    sessionMinutes = round(
-      sumBy(exercises, (exercise) => Number(exercise.duration) || 0),
-    );
-    estimateSource = "suggested";
-  }
+  const sessionMinutes =
+    minutes === null
+      ? Number(existing?.minutes || 0)
+      : Math.max(0, Number(minutes) || 0);
   if (!sessionMinutes) {
     state.strengthSessions[key] = {
       date: key,
@@ -336,7 +323,7 @@ function syncStrengthSession(key, minutes = null) {
     date: key,
     minutes: sessionMinutes,
     kcal: calculateStrengthSessionKcal(key, sessionMinutes),
-    estimateSource,
+    estimateSource: "local",
     aiNotes: "",
     updatedAt: new Date().toISOString(),
   };
@@ -949,53 +936,21 @@ function updateStrengthFields() {
   if (isStrength) {
     populateStrengthMovements(selected.id);
     updateStrengthVolumeHint();
-  } else if ($("#exerciseDuration").dataset.strengthEstimated === "true") {
-    $("#exerciseDuration").value = 45;
-    delete $("#exerciseDuration").dataset.strengthEstimated;
   }
 }
 
-function getEstimatedStrengthDuration(selected, reps, sets) {
-  const restSecondsByType = {
-    strength_chest: 180,
-    strength_back: 180,
-    strength_shoulders: 180,
-    strength_legs: 300,
-  };
-  const restSeconds = restSecondsByType[selected.id] || 180;
-  const totalSeconds = sets * reps * 3 + Math.max(0, sets - 1) * restSeconds;
-  return Math.round(clamp(totalSeconds / 60, 4, 90));
-}
-
 function updateStrengthVolumeHint() {
-  const selected =
-    EXERCISES.find((exercise) => exercise.id === $("#exerciseType").value) ||
-    EXERCISES[0];
   const weight = Math.max(0, Number($("#exerciseWeight").value) || 0);
   const reps = Math.max(1, Number($("#exerciseReps").value) || 1);
   const sets = Math.max(1, Number($("#exerciseSets").value) || 1);
   const volume = weight * reps * sets;
-  const estimatedDuration = getEstimatedStrengthDuration(selected, reps, sets);
-  const restMinutes = selected.id === "strength_legs" ? 5 : 3;
-  $("#exerciseDuration").value = estimatedDuration;
-  $("#exerciseDuration").dataset.strengthEstimated = "true";
   $("#strengthVolumeHint").textContent = weight
-    ? `训练容量：${formatNumber(volume)} kg（${sets} 组 × ${reps} 次 × ${formatNumber(weight, 1)} kg）· 按组间休息 ${restMinutes} 分钟，预计约 ${estimatedDuration} 分钟；休息仅按恢复代谢计算`
-    : `训练容量：${sets} 组 × ${reps} 次，自重动作未计入额外负荷 · 按组间休息 ${restMinutes} 分钟，预计约 ${estimatedDuration} 分钟；休息仅按恢复代谢计算`;
+    ? `训练容量：${formatNumber(volume)} kg（${sets} 组 × ${reps} 次 × ${formatNumber(weight, 1)} kg）`
+    : `训练容量：${sets} 组 × ${reps} 次，自重动作未计入额外负荷`;
 }
 
-function calculateExerciseKcal(selected, duration, intensity, details = {}) {
+function calculateExerciseKcal(selected, duration, intensity) {
   const weight = getWeightStats().currentWeight;
-  if (selected.category === "strength") {
-    const reps = Math.max(1, Number(details.reps) || 1);
-    const sets = Math.max(1, Number(details.sets) || 1);
-    const activeMinutes = (sets * reps * 3) / 60;
-    const restMinutes = Math.max(0, duration - activeMinutes);
-    const activeKcal = (selected.met * 3.5 * weight) / 200 * activeMinutes * intensity;
-    const recoveryKcal =
-      (1.5 * 3.5 * weight) / 200 * restMinutes * Math.min(1.2, intensity);
-    return activeKcal + recoveryKcal;
-  }
   return (selected.met * 3.5 * weight) / 200 * duration * intensity;
 }
 
@@ -1769,18 +1724,17 @@ function bindEvents() {
     event.preventDefault();
     const selected = EXERCISES.find((exercise) => exercise.id === $("#exerciseType").value) || EXERCISES[0];
     const intensity = Number($("#exerciseIntensity").value || 1);
-    const duration = Math.max(1, Number($("#exerciseDuration").value));
-    const intensityLabel = INTENSITY_GUIDES[String(intensity)]?.label || "RPE 6";
     const isStrength = selected.category === "strength";
-    const durationSource = isStrength ? "estimated" : "user";
+    const duration = isStrength ? 0 : Math.max(1, Number($("#exerciseDuration").value));
+    const durationSource = isStrength ? "manual_total" : "user";
+    const intensityLabel = INTENSITY_GUIDES[String(intensity)]?.label || "RPE 6";
     const strengthMovement = isStrength ? $("#exerciseMovement").value : "";
     const weightKg = isStrength ? Math.max(0, Number($("#exerciseWeight").value) || 0) : 0;
     const reps = isStrength ? Math.max(1, Number($("#exerciseReps").value) || 1) : 0;
     const sets = isStrength ? Math.max(1, Number($("#exerciseSets").value) || 1) : 0;
-    const localKcal = Math.max(
-      1,
-      Math.round(calculateExerciseKcal(selected, duration, intensity, { reps, sets })),
-    );
+    const localKcal = isStrength
+      ? 0
+      : Math.max(1, Math.round(calculateExerciseKcal(selected, duration, intensity)));
 
     const exercise = {
       id: uid("exercise"),
