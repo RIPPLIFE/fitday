@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f4f1ea" />
+    <meta name="description" content="按体重趋势和每日训练自动调整热量与三大营养素的减脂记录工具。" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="FitDay" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon.svg" />
+    <link rel="stylesheet" href="./styles.css?v=9" />
+    <title>FitDay 智能减脂盘</title>
+    <script src="./vendor/lucide.min.js" defer></script>
+    <script src="./app.js?v=9" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"><i data-lucide="activity"></i></span>
+          <span>
+            <small>自适应减脂</small>
+            <strong>FitDay</strong>
+          </span>
+        </div>
+        <button class="icon-button" id="installButton" type="button" aria-label="安装到手机" title="安装到手机" hidden>
+          <i data-lucide="download"></i>
+        </button>
+      </header>
+
+      <main class="main-content">
+        <section class="view" id="todayView" aria-labelledby="todayTitle">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow" id="todayDate">今天</p>
+              <h1 id="todayTitle">今天怎么吃</h1>
+            </div>
+            <span class="today-weight-badge" id="todayWeightBadge">体重未记录</span>
+          </div>
+
+          <section class="target-panel">
+            <div class="target-copy">
+              <div class="status-pill" id="planSource">基础估算</div>
+              <p class="target-label">今日建议总摄入</p>
+              <p class="target-number"><span id="targetKcal">0</span><small>kcal</small></p>
+              <p class="target-note" id="targetNote">先记录几天，目标会自动校准。</p>
+            </div>
+            <div class="calorie-ring" id="calorieRing" aria-label="今日热量进度">
+              <div class="ring-inner">
+                <strong id="remainingKcal">0</strong>
+                <span>剩余</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="weight-checkin" id="weightCheckin">
+            <span class="weight-checkin-icon" aria-hidden="true">
+              <i data-lucide="scale"></i>
+            </span>
+            <div class="weight-checkin-copy">
+              <p class="eyebrow">每日记录</p>
+              <strong id="weightCheckinValue">今日体重未记录</strong>
+              <small id="weightCheckinMeta">建议晨起、如厕后、进食前称重</small>
+            </div>
+            <button class="icon-text-button" id="openWeightButton" type="button">
+              <i data-lucide="plus"></i>
+              <span id="weightCheckinAction">填写</span>
+            </button>
+          </section>
+
+          <section class="macro-grid" aria-label="三大营养素剩余量">
+            <article class="macro-card protein">
+              <div class="macro-card-head">
+                <span>蛋白质</span>
+                <i data-lucide="beef"></i>
+              </div>
+              <strong><span id="proteinRemaining">0</span><small>g</small></strong>
+              <p><span id="proteinConsumed">0</span> / <span id="proteinTarget">0</span> g</p>
+              <div class="mini-track"><i id="proteinBar"></i></div>
+            </article>
+            <article class="macro-card carbs">
+              <div class="macro-card-head">
+                <span>碳水</span>
+                <i data-lucide="wheat"></i>
+              </div>
+              <strong><span id="carbsRemaining">0</span><small>g</small></strong>
+              <p><span id="carbsConsumed">0</span> / <span id="carbsTarget">0</span> g</p>
+              <div class="mini-track"><i id="carbsBar"></i></div>
+            </article>
+            <article class="macro-card fat">
+              <div class="macro-card-head">
+                <span>脂肪</span>
+                <i data-lucide="droplets"></i>
+              </div>
+              <strong><span id="fatRemaining">0</span><small>g</small></strong>
+              <p><span id="fatConsumed">0</span> / <span id="fatTarget">0</span> g</p>
+              <div class="mini-track"><i id="fatBar"></i></div>
+            </article>
+          </section>
+
+          <section class="insight-row">
+            <article class="insight-item">
+              <i data-lucide="trending-down"></i>
+              <span>
+                <small>7日趋势</small>
+                <strong id="weightTrend">暂无</strong>
+              </span>
+            </article>
+            <article class="insight-item">
+              <i data-lucide="flame"></i>
+              <span>
+                <small>训练加成</small>
+                <strong id="exerciseCredit">+0 kcal</strong>
+              </span>
+            </article>
+            <article class="insight-item">
+              <i data-lucide="badge-check"></i>
+              <span>
+                <small>估算依据</small>
+                <strong id="maintenanceEstimate">--</strong>
+              </span>
+            </article>
+          </section>
+
+          <section class="section-block">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">饮食记录</p>
+                <h2>今天吃了什么</h2>
+              </div>
+              <div class="heading-actions">
+                <button class="icon-text-button" id="openPhotoButton" type="button">
+                  <i data-lucide="camera"></i>
+                  拍照
+                </button>
+                <button class="icon-button subtle" id="openManualMealButton" type="button" aria-label="手动添加饮食" title="手动添加饮食">
+                  <i data-lucide="plus"></i>
+                </button>
+              </div>
+            </div>
+            <div class="empty-state" id="mealEmpty">
+              <i data-lucide="utensils"></i>
+              <p>还没有饮食记录</p>
+              <span>拍张照片，或手动快速录入。</span>
+            </div>
+            <div class="record-list" id="mealList"></div>
+          </section>
+
+          <section class="section-block">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">运动记录</p>
+                <h2>今天练了什么</h2>
+              </div>
+              <button class="icon-text-button" id="openExerciseButton" type="button">
+                <i data-lucide="dumbbell"></i>
+                添加
+              </button>
+            </div>
+            <div class="empty-state compact" id="exerciseEmpty">
+              <i data-lucide="footprints"></i>
+              <p>训练会实时增加当天可摄入热量</p>
+            </div>
+            <div class="record-list" id="exerciseList"></div>
+          </section>
+        </section>
+
+        <section class="view" id="recordsView" aria-labelledby="recordsTitle" hidden>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">趋势比单日更可靠</p>
+              <h1 id="recordsTitle">记录与趋势</h1>
+            </div>
+          </div>
+
+          <section class="trend-panel">
+            <div class="trend-head">
+              <div>
+                <p>估算维持热量</p>
+                <strong><span id="maintenanceKcal">--</span> kcal</strong>
+              </div>
+              <span class="status-pill" id="adaptiveStatus">等待更多数据</span>
+            </div>
+            <div class="weight-chart" id="weightChart">
+              <div class="chart-empty" id="chartEmpty">至少记录 2 次体重后显示趋势</div>
+            </div>
+            <div class="trend-stats">
+              <span><small>最新体重</small><strong id="latestWeight">--</strong></span>
+              <span><small>7日平均</small><strong id="averageWeight">--</strong></span>
+              <span><small>周变化</small><strong id="weeklyChange">--</strong></span>
+            </div>
+          </section>
+
+          <section class="section-block">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">最近 14 天</p>
+                <h2>每日汇总</h2>
+              </div>
+            </div>
+            <div class="daily-summary" id="dailySummary"></div>
+          </section>
+        </section>
+
+        <section class="view" id="settingsView" aria-labelledby="settingsTitle" hidden>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">计算参数</p>
+              <h1 id="settingsTitle">设置</h1>
+            </div>
+          </div>
+
+          <section class="section-block form-section">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">身体与目标</p>
+                <h2>计算基础</h2>
+              </div>
+            </div>
+            <form id="profileForm" class="form-grid">
+              <label>
+                <span>性别</span>
+                <select id="settingSex" name="sex">
+                  <option value="male">男</option>
+                  <option value="female">女</option>
+                </select>
+              </label>
+              <label>
+                <span>年龄</span>
+                <input id="settingAge" name="age" type="number" min="16" max="90" required />
+              </label>
+              <label>
+                <span>身高 cm</span>
+                <input id="settingHeight" name="height" type="number" min="120" max="230" step="0.1" required />
+              </label>
+              <label>
+                <span>起点体重 kg</span>
+                <input id="settingStartWeight" name="startWeight" type="number" min="35" max="250" step="0.1" required />
+              </label>
+              <label>
+                <span>目标减重速度</span>
+                <select id="settingGoalRate" name="goalRate">
+                  <option value="0.2">每周 0.2 kg，较稳</option>
+                  <option value="0.4">每周 0.4 kg，推荐</option>
+                  <option value="0.6">每周 0.6 kg，较快</option>
+                  <option value="0.8">每周 0.8 kg，激进</option>
+                </select>
+              </label>
+              <label>
+                <span>非运动日常活动</span>
+                <select id="settingActivityFactor" name="activityFactor">
+                  <option value="1.25">久坐，不含骑行和训练</option>
+                  <option value="1.35">日常走动中等</option>
+                  <option value="1.45">体力工作或走动很多</option>
+                </select>
+              </label>
+              <label>
+                <span>蛋白质 g / kg</span>
+                <input id="settingProteinPerKg" name="proteinPerKg" type="number" min="1.4" max="2.4" step="0.1" required />
+              </label>
+              <label>
+                <span>脂肪 g / kg</span>
+                <input id="settingFatPerKg" name="fatPerKg" type="number" min="0.5" max="1.2" step="0.05" required />
+              </label>
+              <button class="primary-button full-span" type="submit">
+                <i data-lucide="save"></i>
+                保存设置
+              </button>
+            </form>
+          </section>
+
+          <section class="section-block form-section">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">图片识别</p>
+                <h2>AI 接口</h2>
+              </div>
+              <span class="status-pill" id="aiStatus">检查中</span>
+            </div>
+            <p class="section-description">需要支持图片输入的视觉模型。这里可填写 OpenAI 兼容接口，Key 只保存在当前浏览器，并发送到本机 FitDay 服务。</p>
+            <form id="aiForm" class="form-grid">
+              <label class="full-span">
+                <span>API Base URL</span>
+                <input id="settingBaseUrl" type="url" autocomplete="off" placeholder="留空用 OpenAI，其他服务填写其 /v1 地址" />
+              </label>
+              <label class="full-span">
+                <span>API Key</span>
+                <input id="settingApiKey" type="password" autocomplete="off" placeholder="sk-..." />
+              </label>
+              <label class="full-span">
+                <span>视觉模型名称</span>
+                <input id="settingModel" type="text" placeholder="例如 qwen-vl-max、GLM-4V、gpt-4.1-mini" />
+              </label>
+              <button class="secondary-button full-span" type="submit">
+                <i data-lucide="key-round"></i>
+                保存到本机
+              </button>
+            </form>
+          </section>
+
+          <section class="section-block form-section">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">本机数据</p>
+                <h2>备份与清理</h2>
+              </div>
+            </div>
+            <div class="button-stack">
+              <button class="secondary-button" id="exportButton" type="button">
+                <i data-lucide="download"></i>
+                导出 JSON 备份
+              </button>
+              <label class="secondary-button file-button">
+                <i data-lucide="upload"></i>
+                导入 JSON 备份
+                <input id="importInput" type="file" accept="application/json,.json" />
+              </label>
+              <button class="danger-button" id="clearButton" type="button">
+                <i data-lucide="trash-2"></i>
+                清空全部记录
+              </button>
+            </div>
+          </section>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="主导航">
+        <button class="nav-button active" data-view="today" type="button">
+          <i data-lucide="circle-gauge"></i>
+          <span>今日</span>
+        </button>
+        <button class="nav-button" data-view="records" type="button">
+          <i data-lucide="chart-no-axes-combined"></i>
+          <span>趋势</span>
+        </button>
+        <button class="nav-button" data-view="settings" type="button">
+          <i data-lucide="settings-2"></i>
+          <span>设置</span>
+        </button>
+      </nav>
+    </div>
+
+    <dialog class="dialog setup-dialog" id="setupDialog">
+      <form method="dialog" class="dialog-card" id="setupForm">
+        <div class="dialog-icon"><i data-lucide="sparkles"></i></div>
+        <p class="eyebrow">首次设置</p>
+        <h2>先确认你的计算基础</h2>
+        <p class="dialog-description">目标会随后续体重趋势缓慢调整，不会因为一次称重或一餐饮食而剧烈波动。</p>
+        <div class="form-grid">
+          <label>
+            <span>性别</span>
+            <select id="setupSex" required>
+              <option value="male">男</option>
+              <option value="female">女</option>
+            </select>
+          </label>
+          <label>
+            <span>年龄</span>
+            <input id="setupAge" type="number" min="16" max="90" value="30" required />
+          </label>
+          <label>
+            <span>身高 cm</span>
+            <input id="setupHeight" type="number" min="120" max="230" step="0.1" value="173" required />
+          </label>
+          <label>
+            <span>当前体重 kg</span>
+            <input id="setupWeight" type="number" min="35" max="250" step="0.1" value="75" required />
+          </label>
+          <label class="full-span">
+            <span>目标减重速度</span>
+            <select id="setupGoalRate">
+              <option value="0.2">每周 0.2 kg，较稳</option>
+              <option value="0.4" selected>每周 0.4 kg，推荐</option>
+              <option value="0.6">每周 0.6 kg，较快</option>
+            </select>
+          </label>
+          <label class="full-span">
+            <span>非运动日常活动</span>
+            <select id="setupActivityFactor">
+              <option value="1.25">久坐，不含骑行和训练</option>
+              <option value="1.35" selected>日常走动中等</option>
+              <option value="1.45">体力工作或走动很多</option>
+            </select>
+          </label>
+        </div>
+        <button class="primary-button" type="submit">
+          <i data-lucide="arrow-right"></i>
+          开始使用
+        </button>
+      </form>
+    </dialog>
+
+    <dialog class="dialog" id="weightDialog">
+      <form method="dialog" class="dialog-card" id="weightForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">每日记录</p>
+            <h2>记录今日体重</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog="weightDialog" aria-label="关闭">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="form-grid">
+          <label class="full-span">
+            <span>日期</span>
+            <input id="weightDate" type="date" required />
+          </label>
+          <label class="full-span">
+            <span>体重 kg</span>
+            <input id="weightValue" type="number" min="35" max="250" step="0.1" inputmode="decimal" required />
+          </label>
+        </div>
+        <p class="helper-text">默认填写今天。若是补记之前的体重，可以修改日期。建议使用同一台秤在晨起后记录。</p>
+        <button class="primary-button" type="submit">
+          <i data-lucide="check"></i>
+          保存体重
+        </button>
+      </form>
+    </dialog>
+
+    <dialog class="dialog" id="mealDialog">
+      <form method="dialog" class="dialog-card" id="mealForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">手动录入</p>
+            <h2>添加饮食</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog="mealDialog" aria-label="关闭">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="form-grid four-columns">
+          <label class="full-span">
+            <span>名称</span>
+            <input id="mealName" type="text" maxlength="80" placeholder="例如：鸡胸肉饭" required />
+          </label>
+          <label>
+            <span>热量 kcal</span>
+            <input id="mealKcal" type="number" min="0" max="5000" step="1" inputmode="decimal" required />
+          </label>
+          <label>
+            <span>蛋白质 g</span>
+            <input id="mealProtein" type="number" min="0" max="500" step="0.1" inputmode="decimal" value="0" required />
+          </label>
+          <label>
+            <span>碳水 g</span>
+            <input id="mealCarbs" type="number" min="0" max="1000" step="0.1" inputmode="decimal" value="0" required />
+          </label>
+          <label>
+            <span>脂肪 g</span>
+            <input id="mealFat" type="number" min="0" max="500" step="0.1" inputmode="decimal" value="0" required />
+          </label>
+        </div>
+        <button class="primary-button" type="submit">
+          <i data-lucide="plus"></i>
+          添加到今天
+        </button>
+      </form>
+    </dialog>
+
+    <dialog class="dialog photo-dialog" id="photoDialog">
+      <form method="dialog" class="dialog-card" id="photoForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">视觉估算</p>
+            <h2>拍照识别</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog="photoDialog" aria-label="关闭">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <label class="photo-picker" for="photoInput">
+          <input id="photoInput" type="file" accept="image/*" capture="environment" />
+          <img id="photoPreview" alt="待识别的饮食照片" hidden />
+          <span id="photoPlaceholder">
+            <i data-lucide="camera"></i>
+            <strong>拍照或选择照片</strong>
+            <small>尽量俯拍，包含整份食物和参照物</small>
+          </span>
+        </label>
+        <label>
+          <span>补充说明（可选）</span>
+          <textarea id="photoNote" rows="2" maxlength="300" placeholder="例如：米饭只吃一半，鸡胸肉约一掌"></textarea>
+        </label>
+        <button class="primary-button" id="analyzePhotoButton" type="button">
+          <i data-lucide="scan-search"></i>
+          开始估算
+        </button>
+
+        <div class="analysis-result" id="photoResult" hidden>
+          <div class="analysis-head">
+            <div>
+              <p class="eyebrow">识别结果</p>
+              <strong id="analysisName">待确认</strong>
+            </div>
+            <span class="status-pill" id="analysisConfidence">中等置信度</span>
+          </div>
+          <div class="analysis-items" id="analysisItems"></div>
+          <p class="helper-text" id="analysisNotes"></p>
+          <div class="form-grid four-columns">
+            <label>
+              <span>热量 kcal</span>
+              <input id="photoKcal" type="number" min="0" max="5000" step="1" inputmode="decimal" required />
+            </label>
+            <label>
+              <span>蛋白质 g</span>
+              <input id="photoProtein" type="number" min="0" max="500" step="0.1" inputmode="decimal" required />
+            </label>
+            <label>
+              <span>碳水 g</span>
+              <input id="photoCarbs" type="number" min="0" max="1000" step="0.1" inputmode="decimal" required />
+            </label>
+            <label>
+              <span>脂肪 g</span>
+              <input id="photoFat" type="number" min="0" max="500" step="0.1" inputmode="decimal" required />
+            </label>
+          </div>
+          <button class="primary-button" id="addPhotoMealButton" type="button">
+            <i data-lucide="check"></i>
+            确认添加到今天
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="dialog" id="exerciseDialog">
+      <form method="dialog" class="dialog-card" id="exerciseForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">运动消耗</p>
+            <h2>添加训练</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog="exerciseDialog" aria-label="关闭">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="form-grid">
+          <label class="full-span">
+            <span>运动形式</span>
+            <select id="exerciseType" required></select>
+          </label>
+          <label>
+            <span>时长 分钟</span>
+            <input id="exerciseDuration" type="number" min="1" max="600" step="1" inputmode="numeric" value="45" required />
+          </label>
+          <label>
+            <span>强度</span>
+            <select id="exerciseIntensity">
+              <option value="0.75">RPE 2-3</option>
+              <option value="0.9">RPE 4-5</option>
+              <option value="1" selected>RPE 6</option>
+              <option value="1.15">RPE 7-8</option>
+              <option value="1.3">RPE 9-10</option>
+            </select>
+          </label>
+        </div>
+        <div class="intensity-reference" id="intensityReference" aria-live="polite"></div>
+        <p class="helper-text" id="exerciseIntensityHint">RPE 6：只能说短句，呼吸明显加快。</p>
+        <p class="helper-text">保存时软件会根据运动形式、时长和 RPE 自动估算消耗，无需手动填写。</p>
+        <button class="primary-button" type="submit">
+          <i data-lucide="flame"></i>
+          添加到今天
+        </button>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
