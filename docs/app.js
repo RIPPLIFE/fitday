@@ -303,12 +303,22 @@ function syncStrengthSession(key, minutes = null) {
   }
 
   const existing = getStrengthSession(key);
-  let sessionMinutes =
-    minutes === null ? Number(existing?.minutes || 0) : Math.max(0, Number(minutes) || 0);
-  if (!sessionMinutes) {
+  const manuallyConfirmed =
+    existing && ["local", "ai"].includes(existing.estimateSource);
+  let sessionMinutes;
+  let estimateSource;
+
+  if (minutes !== null) {
+    sessionMinutes = Math.max(0, Number(minutes) || 0);
+    estimateSource = "local";
+  } else if (manuallyConfirmed) {
+    sessionMinutes = Number(existing.minutes || 0);
+    estimateSource = "local";
+  } else {
     sessionMinutes = round(
       sumBy(exercises, (exercise) => Number(exercise.duration) || 0),
     );
+    estimateSource = "suggested";
   }
   if (!sessionMinutes) {
     state.strengthSessions[key] = {
@@ -326,7 +336,7 @@ function syncStrengthSession(key, minutes = null) {
     date: key,
     minutes: sessionMinutes,
     kcal: calculateStrengthSessionKcal(key, sessionMinutes),
-    estimateSource: existing?.estimateSource === "ai" ? "local" : existing?.estimateSource || "suggested",
+    estimateSource,
     aiNotes: "",
     updatedAt: new Date().toISOString(),
   };
@@ -667,16 +677,17 @@ function renderStrengthSessionPanel() {
 
   const session = getStrengthSession(dateKey());
   $("#dailyStrengthMinutes").value = session?.minutes || "";
+  const countText = `已记录 ${strengthExercises.length} 个动作`;
   if (!session?.minutes) {
-    $("#strengthSessionSummary").textContent = `已记录 ${strengthExercises.length} 个力量动作。填写实际总时长后统一计算。`;
+    $("#strengthSessionSummary").textContent = `${countText}。填写整场训练总时长后统一计算。`;
   } else {
     const sourceLabel =
       session.estimateSource === "ai"
         ? `AI 精算${session.aiNotes ? `：${session.aiNotes}` : ""}`
         : session.estimateSource === "suggested"
-          ? "预估，请确认总时长"
+          ? "自动预估，请确认整场总时长"
         : "本地估算";
-    $("#strengthSessionSummary").textContent = `${formatNumber(session.kcal)} kcal · ${sourceLabel}`;
+    $("#strengthSessionSummary").textContent = `${countText} · ${formatNumber(session.kcal)} kcal · ${sourceLabel}`;
   }
 }
 
