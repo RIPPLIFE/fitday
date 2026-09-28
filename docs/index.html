@@ -11,10 +11,10 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=12" />
+    <link rel="stylesheet" href="./styles.css?v=13" />
     <title>FitDay 智能减脂盘</title>
     <script src="./vendor/lucide.min.js" defer></script>
-    <script src="./app.js?v=12" defer></script>
+    <script src="./app.js?v=13" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -565,6 +565,22 @@
             <span>运动形式</span>
             <select id="exerciseType" required></select>
           </label>
+          <label class="full-span" id="strengthMovementField" hidden>
+            <span>具体动作</span>
+            <select id="exerciseMovement"></select>
+          </label>
+          <label id="strengthWeightField" hidden>
+            <span>重量 kg</span>
+            <input id="exerciseWeight" type="number" min="0" max="1000" step="0.5" inputmode="decimal" placeholder="自重动作可留空" />
+          </label>
+          <label id="strengthRepsField" hidden>
+            <span>每组次数</span>
+            <input id="exerciseReps" type="number" min="1" max="200" step="1" inputmode="numeric" value="8" />
+          </label>
+          <label id="strengthSetsField" hidden>
+            <span>组数</span>
+            <input id="exerciseSets" type="number" min="1" max="50" step="1" inputmode="numeric" value="3" />
+          </label>
           <label>
             <span>时长 分钟</span>
             <input id="exerciseDuration" type="number" min="1" max="600" step="1" inputmode="numeric" value="45" required />
@@ -580,9 +596,10 @@
             </select>
           </label>
         </div>
+        <p class="helper-text" id="strengthVolumeHint" hidden>训练容量：--</p>
         <div class="intensity-reference" id="intensityReference" aria-live="polite"></div>
         <p class="helper-text" id="exerciseIntensityHint">RPE 6：只能说短句，呼吸明显加快。</p>
-        <p class="helper-text">保存时软件会根据运动形式、时长和 RPE 自动估算消耗，无需手动填写。</p>
+        <p class="helper-text">保存时软件会根据运动数据自动估算。配置 AI 后，力量训练会优先使用 AI 精算；否则使用本地公式。</p>
         <button class="primary-button" type="submit">
           <i data-lucide="flame"></i>
           添加到今天
