@@ -4,17 +4,15 @@ const AI_BASE_URL_STORAGE = "fitday_ai_base_url_v1";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const EXERCISES = [
-  { id: "strength", name: "力量训练", met: 5.0 },
+  { id: "strength_chest", name: "练胸", met: 5.0, category: "strength" },
+  { id: "strength_back", name: "练背", met: 5.0, category: "strength" },
+  { id: "strength_shoulders", name: "练肩", met: 4.5, category: "strength" },
+  { id: "strength_legs", name: "练腿", met: 5.5, category: "strength" },
   { id: "walking", name: "快走 / 徒步", met: 4.3 },
   { id: "running", name: "跑步", met: 8.3 },
   { id: "commute_cycling", name: "共享单车 / 通勤骑行", met: 5.0 },
   { id: "cycling", name: "骑行 / 公路车", met: 7.5 },
   { id: "swimming", name: "游泳", met: 7.0 },
-  { id: "hiit", name: "HIIT / 循环训练", met: 8.0 },
-  { id: "rowing", name: "划船机", met: 7.0 },
-  { id: "badminton", name: "羽毛球", met: 5.5 },
-  { id: "basketball", name: "篮球", met: 6.5 },
-  { id: "yoga", name: "瑜伽 / 拉伸", met: 2.5 },
   { id: "other", name: "其他运动", met: 5.0 },
 ];
 
@@ -764,7 +762,8 @@ function updateExerciseIntensityHint(selected = null, intensity = null) {
   const intensityValue =
     intensity === null ? Number($("#exerciseIntensity").value || 1) : Number(intensity);
   const guide = INTENSITY_GUIDES[String(intensityValue)] || INTENSITY_GUIDES["1"];
-  const description = (exercise.id === "strength" ? guide.strength : guide.cardio).replace(
+  const isStrength = exercise.category === "strength";
+  const description = (isStrength ? guide.strength : guide.cardio).replace(
     /[。；;]+$/,
     "",
   );
@@ -778,7 +777,7 @@ function updateExerciseIntensityHint(selected = null, intensity = null) {
   };
   const [low, high] = heartRateRanges[String(intensityValue)] || heartRateRanges["1"];
   const heartRateText =
-    exercise.id === "strength"
+    isStrength
       ? ""
       : `，估算心率约 ${Math.round(maxHeartRate * low)}-${Math.round(maxHeartRate * high)} 次/分`;
   $("#exerciseIntensityHint").textContent = `${guide.label}：${description}${heartRateText}。`;
@@ -787,7 +786,7 @@ function updateExerciseIntensityHint(selected = null, intensity = null) {
 
 function renderIntensityReference(exercise, intensityValue) {
   const container = $("#intensityReference");
-  const isStrength = exercise.id === "strength";
+  const isStrength = exercise.category === "strength";
   const age = Number(state.profile.age || 30);
   const maxHeartRate = Math.round(208 - 0.7 * age);
   const rows = [
