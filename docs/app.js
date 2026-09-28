@@ -814,21 +814,44 @@ function updateStrengthFields() {
   $("#strengthRepsField").hidden = !isStrength;
   $("#strengthSetsField").hidden = !isStrength;
   $("#strengthVolumeHint").hidden = !isStrength;
+  $("#exerciseDurationField").hidden = isStrength;
 
   if (isStrength) {
     populateStrengthMovements(selected.id);
     updateStrengthVolumeHint();
+  } else if ($("#exerciseDuration").dataset.strengthEstimated === "true") {
+    $("#exerciseDuration").value = 45;
+    delete $("#exerciseDuration").dataset.strengthEstimated;
   }
 }
 
+function getEstimatedStrengthDuration(selected, reps, sets) {
+  const restSecondsByType = {
+    strength_chest: 180,
+    strength_back: 180,
+    strength_shoulders: 180,
+    strength_legs: 300,
+  };
+  const restSeconds = restSecondsByType[selected.id] || 180;
+  const totalSeconds = sets * reps * 3 + Math.max(0, sets - 1) * restSeconds;
+  return Math.round(clamp(totalSeconds / 60, 4, 90));
+}
+
 function updateStrengthVolumeHint() {
+  const selected =
+    EXERCISES.find((exercise) => exercise.id === $("#exerciseType").value) ||
+    EXERCISES[0];
   const weight = Math.max(0, Number($("#exerciseWeight").value) || 0);
   const reps = Math.max(1, Number($("#exerciseReps").value) || 1);
   const sets = Math.max(1, Number($("#exerciseSets").value) || 1);
   const volume = weight * reps * sets;
+  const estimatedDuration = getEstimatedStrengthDuration(selected, reps, sets);
+  const restMinutes = selected.id === "strength_legs" ? 5 : 3;
+  $("#exerciseDuration").value = estimatedDuration;
+  $("#exerciseDuration").dataset.strengthEstimated = "true";
   $("#strengthVolumeHint").textContent = weight
-    ? `训练容量：${formatNumber(volume)} kg（${sets} 组 × ${reps} 次 × ${formatNumber(weight, 1)} kg）`
-    : `训练容量：${sets} 组 × ${reps} 次，自重动作未计入额外负荷。`;
+    ? `训练容量：${formatNumber(volume)} kg（${sets} 组 × ${reps} 次 × ${formatNumber(weight, 1)} kg）· 按组间休息 ${restMinutes} 分钟，预计约 ${estimatedDuration} 分钟`
+    : `训练容量：${sets} 组 × ${reps} 次，自重动作未计入额外负荷 · 按组间休息 ${restMinutes} 分钟，预计约 ${estimatedDuration} 分钟`;
 }
 
 function calculateExerciseKcal(selected, duration, intensity) {
@@ -850,6 +873,7 @@ async function requestStrengthAiEstimate({
   selected,
   movement,
   duration,
+  durationSource,
   intensity,
   rpeLabel,
   weightKg,
@@ -863,7 +887,7 @@ async function requestStrengthAiEstimate({
     `体重：${bodyWeight} kg`,
     `训练部位：${selected.name}`,
     `动作：${movement || "其他力量动作"}`,
-    `总时长：${duration} 分钟`,
+    `${durationSource === "estimated" ? "预计总时长" : "总时长"}：${duration} 分钟`,
     `每组次数：${reps}`,
     `组数：${sets}`,
     `外部负荷：${weightKg > 0 ? `${weightKg} kg` : "自重或未填写"}`,
@@ -1609,6 +1633,7 @@ function bindEvents() {
     const duration = Math.max(1, Number($("#exerciseDuration").value));
     const intensityLabel = INTENSITY_GUIDES[String(intensity)]?.label || "RPE 6";
     const isStrength = selected.category === "strength";
+    const durationSource = isStrength ? "estimated" : "user";
     const strengthMovement = isStrength ? $("#exerciseMovement").value : "";
     const weightKg = isStrength ? Math.max(0, Number($("#exerciseWeight").value) || 0) : 0;
     const reps = isStrength ? Math.max(1, Number($("#exerciseReps").value) || 1) : 0;
@@ -1632,6 +1657,7 @@ function bindEvents() {
           selected,
           movement: strengthMovement,
           duration,
+          durationSource,
           intensity,
           rpeLabel: intensityLabel,
           weightKg,
