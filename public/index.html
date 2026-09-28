@@ -11,10 +11,10 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=10" />
+    <link rel="stylesheet" href="./styles.css?v=11" />
     <title>FitDay 智能减脂盘</title>
     <script src="./vendor/lucide.min.js" defer></script>
-    <script src="./app.js?v=10" defer></script>
+    <script src="./app.js?v=11" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -467,19 +467,30 @@
         <div class="dialog-head">
           <div>
             <p class="eyebrow">视觉估算</p>
-            <h2>拍照识别</h2>
+            <h2 id="photoDialogTitle">拍照识别</h2>
           </div>
           <button class="icon-button" type="button" data-close-dialog="photoDialog" aria-label="关闭">
             <i data-lucide="x"></i>
           </button>
         </div>
+        <div class="segmented-control" id="photoModeControl" role="tablist" aria-label="识别模式">
+          <button class="active" data-photo-mode="meal" type="button" role="tab" aria-selected="true">
+            <i data-lucide="utensils"></i>
+            整餐照片
+          </button>
+          <button data-photo-mode="label" type="button" role="tab" aria-selected="false">
+            <i data-lucide="scan-text"></i>
+            营养成分表
+          </button>
+        </div>
+        <p class="helper-text" id="photoModeHint">适合食堂、外卖或已经装盘的混合食物，AI 会估算份量和营养。</p>
         <label class="photo-picker" for="photoInput">
           <input id="photoInput" type="file" accept="image/*" capture="environment" />
           <img id="photoPreview" alt="待识别的饮食照片" hidden />
           <span id="photoPlaceholder">
             <i data-lucide="camera"></i>
             <strong>拍照或选择照片</strong>
-            <small>尽量俯拍，包含整份食物和参照物</small>
+            <small id="photoPickerHint">尽量俯拍，包含整份食物和参照物</small>
           </span>
         </label>
         <label>
@@ -488,7 +499,7 @@
         </label>
         <button class="primary-button" id="analyzePhotoButton" type="button">
           <i data-lucide="scan-search"></i>
-          开始估算
+          <span id="analyzePhotoButtonLabel">开始估算</span>
         </button>
 
         <div class="analysis-result" id="photoResult" hidden>
@@ -501,6 +512,17 @@
           </div>
           <div class="analysis-items" id="analysisItems"></div>
           <p class="helper-text" id="analysisNotes"></p>
+          <div class="label-basis-panel" id="labelBasisPanel" hidden>
+            <div class="label-basis-summary">
+              <span>营养成分表基准</span>
+              <strong id="labelBasisText">--</strong>
+            </div>
+            <label>
+              <span id="labelAmountLabel">实际食用量</span>
+              <input id="labelConsumedAmount" type="number" min="0" max="100000" step="0.1" inputmode="decimal" />
+            </label>
+            <p class="helper-text" id="labelCalculationHint">按实际吃掉的克、毫升或份数换算。</p>
+          </div>
           <div class="form-grid four-columns">
             <label>
               <span>热量 kcal</span>

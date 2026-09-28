@@ -74,6 +74,7 @@ const DEFAULT_STATE = {
 let state = loadState();
 let currentPhoto = null;
 let currentAnalysis = null;
+let photoMode = "meal";
 let deferredInstallPrompt = null;
 let aiServerConfigured = false;
 let toastTimer = null;
@@ -911,6 +912,33 @@ function resetPhotoDialog() {
   $("#photoNote").value = "";
   $("#photoResult").hidden = true;
   $("#analysisItems").replaceChildren();
+  setPhotoMode("meal");
+}
+
+function setPhotoMode(mode) {
+  photoMode = mode === "label" ? "label" : "meal";
+  $$("[data-photo-mode]").forEach((button) => {
+    const active = button.dataset.photoMode === photoMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+
+  const isLabel = photoMode === "label";
+  $("#photoDialogTitle").textContent = isLabel ? "识别营养成分表" : "拍照识别";
+  $("#photoModeHint").textContent = isLabel
+    ? "读取包装上的每 100 克、每 100 毫升或每份营养数据，再按实际食用量换算。"
+    : "适合食堂、外卖或已经装盘的混合食物，AI 会估算份量和营养。";
+  $("#photoPickerHint").textContent = isLabel
+    ? "让营养成分表充满画面，确保数值和单位清晰可读"
+    : "尽量俯拍，包含整份食物和参照物";
+  $("#photoNote").placeholder = isLabel
+    ? "例如：这是牛奶包装背面，准备喝 250 毫升"
+    : "例如：米饭只吃一半，鸡胸肉约一掌";
+  $("#analyzePhotoButtonLabel").textContent = isLabel ? "读取营养成分表" : "开始估算";
+  $("#photoResult").hidden = true;
+  $("#labelBasisPanel").hidden = true;
+  currentAnalysis = null;
+  renderIcons();
 }
 
 function extractJsonObject(text) {
@@ -962,18 +990,61 @@ function sanitizeDirectFoodAnalysis(raw) {
   };
 }
 
-async function requestFoodAnalysisDirect({ baseUrl, apiKey, model, image, note }) {
+function sanitizeDirectLabelAnalysis(raw) {
+  const basisType = raw?.basis_type === "per_serving" ? "per_serving" : "per_100";
+  const basisAmount =
+    basisType === "per_serving"
+      ? 1
+      : Math.max(1, Number(raw?.basis_amount) || 100);
+  const basisUnit = safeText(raw?.basis_unit) || (basisType === "per_serving" ? "份" : "g");
+
+  return {
+    mode: "label",
+    items: [],
+    name: safeText(raw?.name) || "包装食品",
+    basisType,
+    basisAmount,
+    basisUnit,
+    perBasis: {
+      kcal: Math.max(0, Number(raw?.kcal) || 0),
+      protein: Math.max(0, Number(raw?.protein) || 0),
+      carbs: Math.max(0, Number(raw?.carbs) || 0),
+      fat: Math.max(0, Number(raw?.fat) || 0),
+    },
+    defaultAmount: Math.max(
+      0,
+      Number(raw?.default_amount) || (basisType === "per_serving" ? 1 : basisAmount),
+    ),
+    confidence: ["低", "中", "高"].includes(raw?.confidence) ? raw.confidence : "中",
+    notes: safeText(raw?.notes) || "数值来自营养成分表，请核对包装上的单位和实际食用量。",
+  };
+}
+
+async function requestFoodAnalysisDirect({ baseUrl, apiKey, model, image, note, mode }) {
   const endpoint = `${String(baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "")}/chat/completions`;
-  const prompt = [
-    "你是饮食照片估算助手。识别图片中的食物与饮料，并估算可食用份量。",
-    "使用中国家庭常用份量描述，例如半碗、一拳、100克、1杯。",
-    "热量单位为 kcal，蛋白质/碳水/脂肪单位为克。只给出数值。",
-    "如果无法辨认或份量遮挡严重，降低 confidence，并在 notes 说明原因。",
-    "不要把餐具、包装、桌面或背景算成食物。",
-    note ? `用户补充说明：${String(note).slice(0, 300)}` : "",
-    "只返回 JSON，不要 Markdown。",
-    'JSON 格式：{"items":[{"name":"米饭","portion":"1碗","kcal":230,"protein":4,"carbs":50,"fat":0.5}],"confidence":"中","notes":"估算说明"}',
-  ]
+  const isLabel = mode === "label";
+  const prompt = (isLabel
+    ? [
+        "你是包装食品营养成分表读取助手。只读取图片中的营养成分表，不要读取配料列表。",
+        "识别产品名称，以及营养成分表声明的基准：每100克、每100毫升或每份。",
+        "提取该基准对应的热量 kcal、蛋白质、碳水、脂肪，单位均为克。",
+        "不要乘以整包重量，不要自行换算总量；只返回包装上标注的基准数值。",
+        "如果能看到单份或整包规格，填写 default_amount，单位沿用 basis_unit。",
+        "看不清时降低 confidence，并在 notes 说明。",
+        note ? `用户补充说明：${String(note).slice(0, 300)}` : "",
+        "只返回 JSON，不要 Markdown。",
+        'JSON 格式：{"mode":"label","name":"纯牛奶","basis_type":"per_100","basis_amount":100,"basis_unit":"ml","kcal":65,"protein":3.2,"carbs":4.8,"fat":3.6,"default_amount":250,"confidence":"高","notes":""}',
+      ]
+    : [
+        "你是饮食照片估算助手。识别图片中的食物与饮料，并估算可食用份量。",
+        "使用中国家庭常用份量描述，例如半碗、一拳、100克、1杯。",
+        "热量单位为 kcal，蛋白质/碳水/脂肪单位为克。只给出数值。",
+        "如果无法辨认或份量遮挡严重，降低 confidence，并在 notes 说明原因。",
+        "不要把餐具、包装、桌面或背景算成食物。",
+        note ? `用户补充说明：${String(note).slice(0, 300)}` : "",
+        "只返回 JSON，不要 Markdown。",
+        'JSON 格式：{"items":[{"name":"米饭","portion":"1碗","kcal":230,"protein":4,"carbs":50,"fat":0.5}],"confidence":"中","notes":"估算说明"}',
+      ])
     .filter(Boolean)
     .join("\n");
 
@@ -1007,7 +1078,7 @@ async function requestFoodAnalysisDirect({ baseUrl, apiKey, model, image, note }
 
   const raw = extractJsonObject(payload.choices?.[0]?.message?.content);
   if (!raw) throw new Error("视觉模型返回的内容无法解析，请换一张更清晰的照片。");
-  return sanitizeDirectFoodAnalysis(raw);
+  return isLabel ? sanitizeDirectLabelAnalysis(raw) : sanitizeDirectFoodAnalysis(raw);
 }
 
 function canUseLocalAnalysisServer() {
@@ -1021,6 +1092,84 @@ function canUseLocalAnalysisServer() {
     /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
     /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host)
   );
+}
+
+function setAnalysisTotals(totals) {
+  $("#photoKcal").value = round(totals.kcal, 1);
+  $("#photoProtein").value = round(totals.protein, 1);
+  $("#photoCarbs").value = round(totals.carbs, 1);
+  $("#photoFat").value = round(totals.fat, 1);
+}
+
+function renderMealAnalysis(data) {
+  $("#analysisName").textContent =
+    data.items.map((item) => item.name).slice(0, 3).join("、") || "饮食照片";
+  $("#analysisConfidence").textContent = `${data.confidence || "中"}等置信度`;
+  $("#analysisNotes").textContent = data.notes || "请按实际份量修正。";
+  $("#analysisItems").replaceChildren();
+
+  data.items.forEach((item) => {
+    const row = createElement("div", "analysis-item");
+    const copy = createElement("span");
+    copy.append(
+      createElement("strong", "", item.name),
+      createElement("small", "", item.portion),
+    );
+    row.append(copy, createElement("b", "", `${formatNumber(item.kcal)} kcal`));
+    $("#analysisItems").append(row);
+  });
+
+  $("#labelBasisPanel").hidden = true;
+  setAnalysisTotals(data.totals);
+}
+
+function updateLabelTotals() {
+  if (currentAnalysis?.mode !== "label") return;
+  const amount = Math.max(0, Number($("#labelConsumedAmount").value) || 0);
+  const factor =
+    currentAnalysis.basisType === "per_serving"
+      ? amount
+      : amount / Math.max(1, currentAnalysis.basisAmount);
+  setAnalysisTotals({
+    kcal: currentAnalysis.perBasis.kcal * factor,
+    protein: currentAnalysis.perBasis.protein * factor,
+    carbs: currentAnalysis.perBasis.carbs * factor,
+    fat: currentAnalysis.perBasis.fat * factor,
+  });
+}
+
+function renderLabelAnalysis(data) {
+  const isPerServing = data.basisType === "per_serving";
+  const unitLabel = data.basisUnit === "ml" ? "毫升" : data.basisUnit === "份" ? "份" : "克";
+  const basisLabel = isPerServing ? "每份" : `每 ${formatNumber(data.basisAmount, 1)} ${unitLabel}`;
+
+  $("#analysisName").textContent = data.name;
+  $("#analysisConfidence").textContent = `${data.confidence || "中"}等置信度`;
+  $("#analysisNotes").textContent = data.notes;
+  $("#analysisItems").replaceChildren();
+  const row = createElement("div", "analysis-item");
+  const copy = createElement("span");
+  copy.append(
+    createElement("strong", "", basisLabel),
+    createElement(
+      "small",
+      "",
+      `蛋白 ${formatNumber(data.perBasis.protein, 1)}g · 碳水 ${formatNumber(data.perBasis.carbs, 1)}g · 脂肪 ${formatNumber(data.perBasis.fat, 1)}g`,
+    ),
+  );
+  row.append(copy, createElement("b", "", `${formatNumber(data.perBasis.kcal, 1)} kcal`));
+  $("#analysisItems").append(row);
+
+  $("#labelBasisPanel").hidden = false;
+  $("#labelBasisText").textContent = basisLabel;
+  $("#labelAmountLabel").textContent = isPerServing
+    ? "实际食用份数"
+    : `实际食用量（${unitLabel}）`;
+  $("#labelCalculationHint").textContent = isPerServing
+    ? "例如喝掉 2 份就填 2。"
+    : `按实际吃掉的${unitLabel}数换算，不需要填写整包重量。`;
+  $("#labelConsumedAmount").value = data.defaultAmount;
+  updateLabelTotals();
 }
 
 async function analyzePhoto() {
@@ -1046,8 +1195,12 @@ async function analyzePhoto() {
         model,
         image: currentPhoto.analysisDataUrl,
         note: $("#photoNote").value,
+        mode: photoMode,
       });
     } else {
+      if (photoMode === "label") {
+        throw new Error("营养成分表识别需要先配置视觉模型接口。请到“设置 > AI 接口”填写服务商信息。");
+      }
       if (!canUseLocalAnalysisServer()) {
         throw new Error("还没有配置视觉模型接口。请先在“设置 > AI 接口”填写 Base URL、API Key 和视觉模型名称。");
       }
@@ -1059,6 +1212,7 @@ async function analyzePhoto() {
           note: $("#photoNote").value,
           model,
           baseUrl,
+          mode: photoMode,
         }),
       });
       data = await response.json().catch(() => ({}));
@@ -1071,27 +1225,8 @@ async function analyzePhoto() {
     }
 
     currentAnalysis = data;
-    $("#analysisName").textContent =
-      data.items.map((item) => item.name).slice(0, 3).join("、") || "饮食照片";
-    $("#analysisConfidence").textContent = `${data.confidence || "中"}等置信度`;
-    $("#analysisNotes").textContent = data.notes || "请按实际份量修正。";
-    $("#analysisItems").replaceChildren();
-
-    data.items.forEach((item) => {
-      const row = createElement("div", "analysis-item");
-      const copy = createElement("span");
-      copy.append(
-        createElement("strong", "", item.name),
-        createElement("small", "", item.portion),
-      );
-      row.append(copy, createElement("b", "", `${formatNumber(item.kcal)} kcal`));
-      $("#analysisItems").append(row);
-    });
-
-    $("#photoKcal").value = data.totals.kcal;
-    $("#photoProtein").value = data.totals.protein;
-    $("#photoCarbs").value = data.totals.carbs;
-    $("#photoFat").value = data.totals.fat;
+    if (data.mode === "label") renderLabelAnalysis(data);
+    else renderMealAnalysis(data);
     $("#photoResult").hidden = false;
     $("#photoResult").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
@@ -1238,6 +1373,10 @@ function bindEvents() {
     openDialog("photoDialog");
   });
 
+  $$("[data-photo-mode]").forEach((button) => {
+    button.addEventListener("click", () => setPhotoMode(button.dataset.photoMode));
+  });
+
   $("#photoInput").addEventListener("change", async (event) => {
     const [file] = event.target.files;
     if (!file) return;
@@ -1262,6 +1401,7 @@ function bindEvents() {
   });
 
   $("#analyzePhotoButton").addEventListener("click", analyzePhoto);
+  $("#labelConsumedAmount").addEventListener("input", updateLabelTotals);
 
   $("#addPhotoMealButton").addEventListener("click", () => {
     if (!currentAnalysis || !currentPhoto) {
@@ -1269,7 +1409,10 @@ function bindEvents() {
       return;
     }
 
-    const names = currentAnalysis.items.map((item) => item.name).slice(0, 3).join("、");
+    const names =
+      currentAnalysis.mode === "label"
+        ? currentAnalysis.name
+        : currentAnalysis.items.map((item) => item.name).slice(0, 3).join("、");
     const meal = {
       id: uid("meal"),
       date: dateKey(),
@@ -1283,6 +1426,7 @@ function bindEvents() {
       image: currentPhoto.thumbnail,
       confidence: currentAnalysis.confidence,
       notes: currentAnalysis.notes,
+      photoMode: currentAnalysis.mode || "meal",
     };
     state.meals.push(meal);
     saveState();
