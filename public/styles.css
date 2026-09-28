@@ -667,6 +667,58 @@ textarea:focus-visible {
   gap: 8px;
 }
 
+.strength-session-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--teal-soft);
+  border: 1px solid #b9ddd6;
+  border-radius: var(--radius);
+}
+
+.strength-session-copy {
+  min-width: 0;
+}
+
+.strength-session-copy .eyebrow {
+  margin-bottom: 3px;
+  color: var(--teal);
+  font-size: 10px;
+}
+
+.strength-session-copy strong,
+.strength-session-copy small {
+  display: block;
+}
+
+.strength-session-copy strong {
+  font-size: 15px;
+}
+
+.strength-session-copy small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.strength-session-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.strength-session-input input {
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 11px;
+  color: var(--ink);
+  background: var(--surface-strong);
+  border: 1px solid #b9ddd6;
+  border-radius: var(--radius);
+}
+
 .record-item {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) auto;

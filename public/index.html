@@ -11,10 +11,10 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=17" />
+    <link rel="stylesheet" href="./styles.css?v=18" />
     <title>FitDay 智能减脂盘</title>
     <script src="./vendor/lucide.min.js" defer></script>
-    <script src="./app.js?v=17" defer></script>
+    <script src="./app.js?v=18" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -165,6 +165,20 @@
               <p>训练会实时增加当天可摄入热量</p>
             </div>
             <div class="record-list" id="exerciseList"></div>
+            <div class="strength-session-panel" id="strengthSessionPanel" hidden>
+              <div class="strength-session-copy">
+                <p class="eyebrow">当日汇总</p>
+                <strong>今日力量训练总时长</strong>
+                <small id="strengthSessionSummary">填写实际总时长后统一计算力量消耗。</small>
+              </div>
+              <div class="strength-session-input">
+                <input id="dailyStrengthMinutes" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="分钟" aria-label="今日力量训练总时长" />
+                <button class="icon-text-button" id="saveStrengthMinutesButton" type="button">
+                  <i data-lucide="check"></i>
+                  保存
+                </button>
+              </div>
+            </div>
           </section>
         </section>
 
