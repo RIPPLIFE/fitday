@@ -1010,6 +1010,19 @@ async function requestFoodAnalysisDirect({ baseUrl, apiKey, model, image, note }
   return sanitizeDirectFoodAnalysis(raw);
 }
 
+function canUseLocalAnalysisServer() {
+  const host = location.hostname;
+  return (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host.endsWith(".ts.net") ||
+    /^10\./.test(host) ||
+    /^192\.168\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+    /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host)
+  );
+}
+
 async function analyzePhoto() {
   if (!currentPhoto?.analysisDataUrl) {
     showToast("请先拍照或选择图片。", "error");
@@ -1035,6 +1048,9 @@ async function analyzePhoto() {
         note: $("#photoNote").value,
       });
     } else {
+      if (!canUseLocalAnalysisServer()) {
+        throw new Error("还没有配置视觉模型接口。请先在“设置 > AI 接口”填写 Base URL、API Key 和视觉模型名称。");
+      }
       const response = await fetch("./api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
