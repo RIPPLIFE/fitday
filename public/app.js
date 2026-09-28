@@ -850,12 +850,22 @@ function updateStrengthVolumeHint() {
   $("#exerciseDuration").value = estimatedDuration;
   $("#exerciseDuration").dataset.strengthEstimated = "true";
   $("#strengthVolumeHint").textContent = weight
-    ? `训练容量：${formatNumber(volume)} kg（${sets} 组 × ${reps} 次 × ${formatNumber(weight, 1)} kg）· 按组间休息 ${restMinutes} 分钟，预计约 ${estimatedDuration} 分钟`
-    : `训练容量：${sets} 组 × ${reps} 次，自重动作未计入额外负荷 · 按组间休息 ${restMinutes} 分钟，预计约 ${estimatedDuration} 分钟`;
+    ? `训练容量：${formatNumber(volume)} kg（${sets} 组 × ${reps} 次 × ${formatNumber(weight, 1)} kg）· 按组间休息 ${restMinutes} 分钟，预计约 ${estimatedDuration} 分钟；休息仅按恢复代谢计算`
+    : `训练容量：${sets} 组 × ${reps} 次，自重动作未计入额外负荷 · 按组间休息 ${restMinutes} 分钟，预计约 ${estimatedDuration} 分钟；休息仅按恢复代谢计算`;
 }
 
-function calculateExerciseKcal(selected, duration, intensity) {
+function calculateExerciseKcal(selected, duration, intensity, details = {}) {
   const weight = getWeightStats().currentWeight;
+  if (selected.category === "strength") {
+    const reps = Math.max(1, Number(details.reps) || 1);
+    const sets = Math.max(1, Number(details.sets) || 1);
+    const activeMinutes = (sets * reps * 3) / 60;
+    const restMinutes = Math.max(0, duration - activeMinutes);
+    const activeKcal = (selected.met * 3.5 * weight) / 200 * activeMinutes * intensity;
+    const recoveryKcal =
+      (1.5 * 3.5 * weight) / 200 * restMinutes * Math.min(1.2, intensity);
+    return activeKcal + recoveryKcal;
+  }
   return (selected.met * 3.5 * weight) / 200 * duration * intensity;
 }
 
@@ -1638,7 +1648,10 @@ function bindEvents() {
     const weightKg = isStrength ? Math.max(0, Number($("#exerciseWeight").value) || 0) : 0;
     const reps = isStrength ? Math.max(1, Number($("#exerciseReps").value) || 1) : 0;
     const sets = isStrength ? Math.max(1, Number($("#exerciseSets").value) || 1) : 0;
-    const localKcal = Math.max(1, Math.round(calculateExerciseKcal(selected, duration, intensity)));
+    const localKcal = Math.max(
+      1,
+      Math.round(calculateExerciseKcal(selected, duration, intensity, { reps, sets })),
+    );
     let kcal = localKcal;
     let estimateSource = "local";
     let aiNotes = "";
@@ -1664,7 +1677,7 @@ function bindEvents() {
           reps,
           sets,
         });
-        kcal = Math.round(clamp(aiEstimate.kcal, localKcal * 0.5, localKcal * 2));
+        kcal = Math.round(clamp(aiEstimate.kcal, localKcal * 0.5, localKcal * 3));
         estimateSource = "ai";
         aiNotes = aiEstimate.notes;
       } catch (error) {
