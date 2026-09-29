@@ -11,10 +11,10 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=22" />
+    <link rel="stylesheet" href="./styles.css?v=23" />
     <title>FitDay 智能减脂盘</title>
     <script src="./vendor/lucide.min.js" defer></script>
-    <script src="./app.js?v=22" defer></script>
+    <script src="./app.js?v=23" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -307,6 +307,14 @@
               <label class="full-span">
                 <span>视觉模型名称</span>
                 <input id="settingModel" type="text" placeholder="例如 qwen-vl-max、GLM-4V、gpt-4.1-mini" />
+              </label>
+              <label class="full-span">
+                <span>思考模式（硅基流动）</span>
+                <select id="settingThinkingMode">
+                  <option value="off">关闭思考，响应最快</option>
+                  <option value="low">快速思考，最多 128 token</option>
+                  <option value="default">使用服务商默认设置</option>
+                </select>
               </label>
               <button class="secondary-button full-span" type="submit">
                 <i data-lucide="key-round"></i>

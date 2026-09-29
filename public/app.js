@@ -1,6 +1,7 @@
 const STORAGE_KEY = "fitday_state_v1";
 const AI_KEY_STORAGE = "fitday_ai_key_v1";
 const AI_BASE_URL_STORAGE = "fitday_ai_base_url_v1";
+const AI_THINKING_STORAGE = "fitday_ai_thinking_mode_v1";
 const LOCAL_DB_NAME = "fitday_local_db";
 const LOCAL_DB_VERSION = 1;
 const LOCAL_DB_STORE = "state";
@@ -898,6 +899,7 @@ function renderSettings() {
     localStorage.getItem(AI_BASE_URL_STORAGE) || state.settings.baseUrl || "";
   $("#settingModel").value = localStorage.getItem("fitday_model_v1") || state.settings.model || "gpt-4.1-mini";
   $("#settingApiKey").value = localStorage.getItem(AI_KEY_STORAGE) || "";
+  $("#settingThinkingMode").value = localStorage.getItem(AI_THINKING_STORAGE) || "off";
   $("#aiStatus").textContent = aiServerConfigured
     ? "服务端已配置"
     : localStorage.getItem(AI_KEY_STORAGE)
@@ -1077,6 +1079,7 @@ async function requestStrengthSessionAiEstimate({
     },
     body: JSON.stringify({
       model,
+      ...getProviderRequestOptions(baseUrl),
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -1365,6 +1368,24 @@ function sanitizeDirectLabelAnalysis(raw) {
   };
 }
 
+function getProviderRequestOptions(baseUrl) {
+  const options = {
+    temperature: 0.1,
+    max_tokens: 2000,
+    stream: false,
+  };
+  if (!/siliconflow\.cn/i.test(String(baseUrl || ""))) return options;
+
+  const thinkingMode = localStorage.getItem(AI_THINKING_STORAGE) || "off";
+  if (thinkingMode === "off") {
+    options.enable_thinking = false;
+  } else if (thinkingMode === "low") {
+    options.enable_thinking = true;
+    options.thinking_budget = 128;
+  }
+  return options;
+}
+
 async function requestFoodAnalysisDirect({ baseUrl, apiKey, model, image, note, mode }) {
   const endpoint = `${String(baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "")}/chat/completions`;
   const isLabel = mode === "label";
@@ -1401,6 +1422,7 @@ async function requestFoodAnalysisDirect({ baseUrl, apiKey, model, image, note, 
     },
     body: JSON.stringify({
       model,
+      ...getProviderRequestOptions(baseUrl),
       messages: [
         {
           role: "user",
@@ -1937,11 +1959,13 @@ function bindEvents() {
     const key = $("#settingApiKey").value.trim();
     const model = $("#settingModel").value.trim() || "gpt-4.1-mini";
     const baseUrl = $("#settingBaseUrl").value.trim().replace(/\/+$/, "");
+    const thinkingMode = $("#settingThinkingMode").value || "off";
     if (key) localStorage.setItem(AI_KEY_STORAGE, key);
     else localStorage.removeItem(AI_KEY_STORAGE);
     if (baseUrl) localStorage.setItem(AI_BASE_URL_STORAGE, baseUrl);
     else localStorage.removeItem(AI_BASE_URL_STORAGE);
     localStorage.setItem("fitday_model_v1", model);
+    localStorage.setItem(AI_THINKING_STORAGE, thinkingMode);
     state.settings.model = model;
     state.settings.baseUrl = baseUrl;
     saveState();
