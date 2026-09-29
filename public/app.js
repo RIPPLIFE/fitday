@@ -1,6 +1,9 @@
 const STORAGE_KEY = "fitday_state_v1";
 const AI_KEY_STORAGE = "fitday_ai_key_v1";
 const AI_BASE_URL_STORAGE = "fitday_ai_base_url_v1";
+const LOCAL_DB_NAME = "fitday_local_db";
+const LOCAL_DB_VERSION = 1;
+const LOCAL_DB_STORE = "state";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const EXERCISES = [
@@ -94,6 +97,7 @@ const STRENGTH_MOVEMENTS = {
 
 const DEFAULT_STATE = {
   version: 1,
+  updatedAt: "",
   setupComplete: false,
   profile: {
     sex: "male",
@@ -142,6 +146,74 @@ function loadState() {
   }
 }
 
+function openLocalDatabase() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) {
+      reject(new Error("IndexedDB unavailable"));
+      return;
+    }
+    const request = indexedDB.open(LOCAL_DB_NAME, LOCAL_DB_VERSION);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains(LOCAL_DB_STORE)) {
+        database.createObjectStore(LOCAL_DB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("IndexedDB open failed"));
+  });
+}
+
+async function persistLocalBackup(value) {
+  try {
+    const database = await openLocalDatabase();
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction(LOCAL_DB_STORE, "readwrite");
+      transaction.objectStore(LOCAL_DB_STORE).put(value, "latest");
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error || new Error("IndexedDB write failed"));
+    });
+    database.close();
+  } catch {
+    // localStorage remains the primary store when IndexedDB is unavailable.
+  }
+}
+
+async function readLocalBackup() {
+  try {
+    const database = await openLocalDatabase();
+    const value = await new Promise((resolve, reject) => {
+      const transaction = database.transaction(LOCAL_DB_STORE, "readonly");
+      const request = transaction.objectStore(LOCAL_DB_STORE).get("latest");
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error || new Error("IndexedDB read failed"));
+    });
+    database.close();
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+async function restoreLocalBackupIfNeeded() {
+  const backup = await readLocalBackup();
+  if (!backup) return;
+
+  const localUpdatedAt = Date.parse(state.updatedAt || "") || 0;
+  const backupUpdatedAt = Date.parse(backup.updatedAt || "") || 0;
+  const backupIsBetter =
+    backupUpdatedAt > localUpdatedAt ||
+    (!state.setupComplete && Boolean(backup.setupComplete));
+  if (!backupIsBetter) return;
+
+  state = normalizeState(backup);
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // IndexedDB can still serve as the fallback on the next launch.
+  }
+}
+
 function normalizeState(value) {
   const source = value && typeof value === "object" ? value : {};
   return {
@@ -161,7 +233,13 @@ function normalizeState(value) {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  state.updatedAt = new Date().toISOString();
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    window.setTimeout(() => showToast("浏览器主存储写入失败，正在使用本地备份。", "error"), 0);
+  }
+  void persistLocalBackup(clone(state));
 }
 
 function uid(prefix) {
@@ -1906,6 +1984,7 @@ function bindEvents() {
 }
 
 async function init() {
+  await restoreLocalBackupIfNeeded();
   populateExerciseSelect();
   bindEvents();
   renderAll();
