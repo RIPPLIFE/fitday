@@ -1945,6 +1945,7 @@ function bindEvents() {
     state.settings.model = model;
     state.settings.baseUrl = baseUrl;
     saveState();
+    renderSettings();
     showToast("AI 配置已保存在当前浏览器。");
   });
 
