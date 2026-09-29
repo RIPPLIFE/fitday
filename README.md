@@ -11,6 +11,7 @@
 - 配置兼容 OpenAI Chat Completions 的视觉模型后，照片会由手机直接发送给所选服务商。
 - API Key 保存在手机浏览器，不写入仓库，也不会进入 JSON 备份。
 - 当前仓库不包含任何 AI 服务商 Key，也不默认绑定硅基流动。
+- 状态会同时写入 localStorage 和同源 IndexedDB，主存储异常时可自动尝试恢复。
 
 修改 `public/` 后运行 `sync-phone.ps1`，即可把最新版同步到 `docs/`。
 
