@@ -667,49 +667,98 @@ textarea:focus-visible {
   gap: 8px;
 }
 
-.strength-session-panel {
+.strength-session-card {
   display: grid;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 14px;
-  background: var(--teal-soft);
-  border: 1px solid #b9ddd6;
+  gap: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 
-.strength-session-copy {
+.strength-session-header {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  background: var(--teal-soft);
+}
+
+.strength-session-header .record-thumb {
+  background: var(--teal);
+  color: #ffffff;
+}
+
+.strength-session-header-copy {
   min-width: 0;
 }
 
-.strength-session-copy .eyebrow {
-  margin-bottom: 3px;
-  color: var(--teal);
-  font-size: 10px;
-}
-
-.strength-session-copy strong,
-.strength-session-copy small {
+.strength-session-header-copy strong,
+.strength-session-header-copy small {
   display: block;
 }
 
-.strength-session-copy strong {
+.strength-session-header-copy strong {
   font-size: 15px;
 }
 
-.strength-session-copy small {
-  margin-top: 5px;
+.strength-session-header-copy small {
+  margin-top: 4px;
+  overflow: hidden;
   color: var(--muted);
   font-size: 10px;
-  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.strength-session-input {
+.strength-movement-list {
+  display: grid;
+}
+
+.strength-movement-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.strength-movement-row strong,
+.strength-movement-row small {
+  display: block;
+}
+
+.strength-movement-row strong {
+  font-size: 13px;
+}
+
+.strength-movement-row small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.strength-duration-editor {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+  background: rgba(223, 241, 237, 0.38);
 }
 
-.strength-session-input input {
+.strength-duration-editor label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.strength-duration-editor input {
   min-width: 0;
   min-height: 42px;
   padding: 9px 11px;
@@ -717,6 +766,13 @@ textarea:focus-visible {
   background: var(--surface-strong);
   border: 1px solid #b9ddd6;
   border-radius: var(--radius);
+}
+
+.strength-duration-editor .icon-text-button {
+  align-self: end;
+  min-height: 42px;
+  color: #ffffff;
+  background: var(--teal);
 }
 
 .record-item {

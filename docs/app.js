@@ -113,6 +113,7 @@ const DEFAULT_STATE = {
   settings: {
     model: "gpt-4.1-mini",
     baseUrl: "",
+    lastExerciseType: "",
   },
   ui: {
     lastWeightPromptDate: "",
@@ -701,26 +702,31 @@ function renderExercises() {
   list.replaceChildren();
   empty.hidden = exercises.length > 0;
 
-  exercises.forEach((exercise) => {
-    const isStrength = isStrengthExerciseRecord(exercise);
+  const strengthExercises = exercises.filter(isStrengthExerciseRecord);
+  if (strengthExercises.length) {
+    list.append(createStrengthSessionCard(strengthExercises));
+  }
+
+  exercises.filter((exercise) => !isStrengthExerciseRecord(exercise)).forEach((exercise) => {
     const item = createElement("article", "record-item");
     const thumb = createElement("div", "record-thumb");
     thumb.append(createIcon("dumbbell"));
 
     const copy = createElement("div", "record-copy");
-    const details = exercise.strengthMovement
-      ? `${exercise.strengthMovement} · ${exercise.sets || 1}组×${exercise.reps || 1}次${exercise.weightKg ? `×${formatNumber(exercise.weightKg, 1)}kg` : ""} · ${exercise.intensityLabel || "RPE 6"}`
-      : `${formatNumber(exercise.duration)} 分钟 · ${exercise.intensityLabel || "RPE 6"}`;
     copy.append(
       createElement("strong", "", exercise.name),
-      createElement("small", "", details),
+      createElement(
+        "small",
+        "",
+        `${formatNumber(exercise.duration)} 分钟 · ${exercise.intensityLabel || "RPE 6"}`,
+      ),
     );
 
     const end = createElement("div", "record-row-end");
     const value = createElement("div", "record-value");
     value.append(
-      createElement("strong", "", isStrength ? "明细" : `+${formatNumber(exercise.kcal)}`),
-      createElement("small", "", isStrength ? "计入总时长" : "kcal"),
+      createElement("strong", "", `+${formatNumber(exercise.kcal)}`),
+      createElement("small", "", "kcal"),
     );
     const deleteButton = createElement("button", "delete-record");
     deleteButton.type = "button";
@@ -732,29 +738,136 @@ function renderExercises() {
     item.append(thumb, copy, end);
     list.append(item);
   });
-  renderStrengthSessionPanel();
 }
 
-function renderStrengthSessionPanel() {
-  const strengthExercises = getStrengthExercisesForDate(dateKey());
-  const panel = $("#strengthSessionPanel");
-  panel.hidden = strengthExercises.length === 0;
-  if (!strengthExercises.length) return;
-
+function createStrengthSessionCard(exercises) {
   const session = getStrengthSession(dateKey());
-  $("#dailyStrengthMinutes").value = session?.minutes || "";
-  const countText = `已记录 ${strengthExercises.length} 个动作`;
-  if (!session?.minutes) {
-    $("#strengthSessionSummary").textContent = `${countText}。填写整场训练总时长后统一计算。`;
-  } else {
-    const sourceLabel =
-      session.estimateSource === "ai"
-        ? `AI 精算${session.aiNotes ? `：${session.aiNotes}` : ""}`
-        : session.estimateSource === "suggested"
-          ? "自动预估，请确认整场总时长"
-        : "本地估算";
-    $("#strengthSessionSummary").textContent = `${countText} · ${formatNumber(session.kcal)} kcal · ${sourceLabel}`;
+  const card = createElement("article", "strength-session-card");
+  const header = createElement("div", "strength-session-header");
+  const thumb = createElement("div", "record-thumb");
+  thumb.append(createIcon("dumbbell"));
+  const headerCopy = createElement("div", "strength-session-header-copy");
+  const totalVolume = exercises.reduce(
+    (sum, exercise) => sum + (Number(exercise.trainingVolume) || 0),
+    0,
+  );
+  const sessionSummary = session?.minutes
+    ? `总容量 ${formatNumber(totalVolume)} kg · ${formatNumber(session.minutes)} 分钟`
+    : `总容量 ${formatNumber(totalVolume)} kg · 请填写整场总时长`;
+  headerCopy.append(
+    createElement("strong", "", `力量训练 · ${exercises.length} 个动作`),
+    createElement("small", "", sessionSummary),
+  );
+  const value = createElement("div", "record-value");
+  value.append(
+    createElement(
+      "strong",
+      "",
+      session?.minutes ? `${formatNumber(session.kcal)} kcal` : "待填时长",
+    ),
+    createElement(
+      "small",
+      "",
+      session?.estimateSource === "ai" ? "AI 估算" : session?.minutes ? "本地估算" : "未计算",
+    ),
+  );
+  header.append(thumb, headerCopy, value);
+  card.append(header);
+
+  const movementList = createElement("div", "strength-movement-list");
+  exercises.forEach((exercise) => {
+    const row = createElement("div", "strength-movement-row");
+    const copy = createElement("div");
+    const load = exercise.weightKg
+      ? `${formatNumber(exercise.sets || 1)}组×${formatNumber(exercise.reps || 1)}次×${formatNumber(exercise.weightKg, 1)}kg`
+      : `${formatNumber(exercise.sets || 1)}组×${formatNumber(exercise.reps || 1)}次`;
+    copy.append(
+      createElement("strong", "", `${exercise.name} · ${exercise.strengthMovement || "其他动作"}`),
+      createElement("small", "", `${load} · ${exercise.intensityLabel || "RPE 6"}`),
+    );
+    const deleteButton = createElement("button", "delete-record");
+    deleteButton.type = "button";
+    deleteButton.setAttribute("aria-label", `删除 ${exercise.strengthMovement || exercise.name}`);
+    deleteButton.dataset.deleteExercise = exercise.id;
+    deleteButton.append(createIcon("trash-2"));
+    row.append(copy, deleteButton);
+    movementList.append(row);
+  });
+  card.append(movementList);
+
+  const editor = createElement("div", "strength-duration-editor");
+  const label = document.createElement("label");
+  label.append(createElement("span", "", "今日力训时长（分钟）"));
+  const input = document.createElement("input");
+  input.id = "dailyStrengthMinutes";
+  input.type = "number";
+  input.min = "1";
+  input.max = "600";
+  input.step = "1";
+  input.inputMode = "numeric";
+  input.placeholder = "手动填写";
+  input.value = session?.minutes || "";
+  label.append(input);
+  const saveButton = createElement("button", "icon-text-button");
+  saveButton.type = "button";
+  saveButton.id = "saveStrengthMinutesButton";
+  saveButton.dataset.saveStrengthMinutes = "true";
+  saveButton.append(createIcon("check"), document.createTextNode("保存"));
+  editor.append(label, saveButton);
+  card.append(editor);
+  return card;
+}
+
+async function saveDailyStrengthMinutes(button) {
+  const key = dateKey();
+  const minutes = Math.max(0, Number($("#dailyStrengthMinutes")?.value) || 0);
+  const exercises = getStrengthExercisesForDate(key);
+  if (!exercises.length || minutes <= 0) {
+    showToast("请填写有效的力量训练总时长。", "error");
+    return;
   }
+
+  const localKcal = calculateStrengthSessionKcal(key, minutes);
+  let kcal = localKcal;
+  let estimateSource = "local";
+  let aiNotes = "";
+  const apiKey = localStorage.getItem(AI_KEY_STORAGE) || "";
+  const baseUrl = localStorage.getItem(AI_BASE_URL_STORAGE) || state.settings.baseUrl || "";
+  const model = localStorage.getItem("fitday_model_v1") || state.settings.model;
+
+  if (apiKey) {
+    button.classList.add("loading");
+    button.disabled = true;
+    try {
+      const aiEstimate = await requestStrengthSessionAiEstimate({
+        baseUrl,
+        apiKey,
+        model,
+        exercises,
+        duration: minutes,
+      });
+      kcal = Math.round(clamp(aiEstimate.kcal, localKcal * 0.5, localKcal * 3));
+      estimateSource = "ai";
+      aiNotes = aiEstimate.notes;
+    } catch (error) {
+      showToast(`AI 精算失败，已使用本地估算：${error.message}`, "error");
+    } finally {
+      button.classList.remove("loading");
+      button.disabled = false;
+    }
+  }
+
+  state.strengthSessions[key] = {
+    date: key,
+    minutes,
+    kcal,
+    estimateSource,
+    aiNotes,
+    updatedAt: new Date().toISOString(),
+  };
+  saveState();
+  renderAll();
+  showToast(estimateSource === "ai" ? "AI 已完成今日力量训练精算。" : "今日力训时长已保存。");
 }
 
 function createIcon(name) {
@@ -1805,7 +1918,12 @@ function bindEvents() {
   $("#openExerciseButton").addEventListener("click", () => {
     $("#exerciseDuration").value = 45;
     $("#exerciseIntensity").value = "1";
-    $("#exerciseType").selectedIndex = 0;
+    const lastExerciseType = state.settings.lastExerciseType;
+    if (lastExerciseType && EXERCISES.some((exercise) => exercise.id === lastExerciseType)) {
+      $("#exerciseType").value = lastExerciseType;
+    } else {
+      $("#exerciseType").selectedIndex = 0;
+    }
     $("#exerciseWeight").value = "";
     $("#exerciseReps").value = 8;
     $("#exerciseSets").value = 3;
@@ -1857,6 +1975,7 @@ function bindEvents() {
       kcal: isStrength ? 0 : localKcal,
     };
     state.exercises.push(exercise);
+    state.settings.lastExerciseType = selected.id;
     if (isStrength) syncStrengthSession(dateKey());
     saveState();
     closeDialog("exerciseDialog");
@@ -1873,7 +1992,12 @@ function bindEvents() {
     showToast("饮食记录已删除。");
   });
 
-  $("#exerciseList").addEventListener("click", (event) => {
+  $("#exerciseList").addEventListener("click", async (event) => {
+    const saveButton = event.target.closest("[data-save-strength-minutes]");
+    if (saveButton) {
+      await saveDailyStrengthMinutes(saveButton);
+      return;
+    }
     const button = event.target.closest("[data-delete-exercise]");
     if (!button) return;
     state.exercises = state.exercises.filter((exercise) => exercise.id !== button.dataset.deleteExercise);
@@ -1881,59 +2005,6 @@ function bindEvents() {
     saveState();
     renderAll();
     showToast("训练记录已删除。");
-  });
-
-  $("#saveStrengthMinutesButton").addEventListener("click", async (event) => {
-    const button = event.currentTarget;
-    const key = dateKey();
-    const minutes = Math.max(0, Number($("#dailyStrengthMinutes").value) || 0);
-    const exercises = getStrengthExercisesForDate(key);
-    if (!exercises.length || minutes <= 0) {
-      showToast("请填写有效的力量训练总时长。", "error");
-      return;
-    }
-
-    const localKcal = calculateStrengthSessionKcal(key, minutes);
-    let kcal = localKcal;
-    let estimateSource = "local";
-    let aiNotes = "";
-    const apiKey = localStorage.getItem(AI_KEY_STORAGE) || "";
-    const baseUrl = localStorage.getItem(AI_BASE_URL_STORAGE) || state.settings.baseUrl || "";
-    const model = localStorage.getItem("fitday_model_v1") || state.settings.model;
-
-    if (apiKey) {
-      button.classList.add("loading");
-      button.disabled = true;
-      try {
-        const aiEstimate = await requestStrengthSessionAiEstimate({
-          baseUrl,
-          apiKey,
-          model,
-          exercises,
-          duration: minutes,
-        });
-        kcal = Math.round(clamp(aiEstimate.kcal, localKcal * 0.5, localKcal * 3));
-        estimateSource = "ai";
-        aiNotes = aiEstimate.notes;
-      } catch (error) {
-        showToast(`AI 精算失败，已使用本地估算：${error.message}`, "error");
-      } finally {
-        button.classList.remove("loading");
-        button.disabled = false;
-      }
-    }
-
-    state.strengthSessions[key] = {
-      date: key,
-      minutes,
-      kcal,
-      estimateSource,
-      aiNotes,
-      updatedAt: new Date().toISOString(),
-    };
-    saveState();
-    renderAll();
-    showToast(estimateSource === "ai" ? "AI 已完成今日力量训练精算。" : "今日力量训练总时长已保存。");
   });
 
   $("#profileForm").addEventListener("submit", (event) => {

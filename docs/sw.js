@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitday-v23";
+const CACHE_NAME = "fitday-v24";
 const APP_SHELL = [
   "./",
   "./index.html",
